@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Dashboard Pro Integrated</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        :root {
+            --primary: #2196F3;
+            --success: #4CAF50;
+            --danger: #D32F2F; 
+            --warning: #FF9800;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #333;
+            --input-bg: #ffffff;
+            --neon-blue: #00f2ff; /* Màu cho hiệu ứng */
+        }
+
+        [data-theme="dark"] {
+            --bg: #121212;
+            --card-bg: #1e1e1e;
+            --text: #e0e0e0;
+            --input-bg: #2d2d2d;
+            --danger: #ff5252;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding-bottom: 85px;
+            transition: 0.3s;
+            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden; /* Tránh thanh cuộn ngang do hiệu ứng */
+        }
+
+        /* --- Navbar --- */
+        .nav-container {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: var(--card-bg);
+            display: flex; padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 1000; border-top: 1px solid #eee;
+        }
+        [data-theme="dark"] .nav-container { border-top-color: #333; }
+        .nav-item { flex: 1; text-align: center; font-size: 10px; color: #999; background: none; border: none; cursor: pointer; }
+        .nav-item.active { color: var(--primary); font-weight: 700; }
+        .nav-icon { display: block; font-size: 22px; margin-bottom: 3px; }
+
+        /* --- UI Elements --- */
+        .screen { display: none; padding: 15px; animation: fadeIn 0.2s ease-out; }
+        .screen.active { display: block; }
+        
+        /* Riêng màn hình Tình hình (Status) cần full màn hình và không padding */
+        #screen-status { padding: 0 !important; height: calc(100vh - 70px); width: 100%; position: relative; overflow: hidden; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        h2 { color: var(--primary); border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 1.4rem; margin-top: 0; }
+        .card { background: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .group-title { font-weight: 700; margin-bottom: 12px; color: var(--text); font-size: 1.1rem; }
+
+        /* --- Inputs --- */
+        .input-group { margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
+        .k-input-wrapper { position: relative; width: 120px; }
+        .k-input-wrapper::after { content: "K"; position: absolute; right: 10px; top: 12px; color: #888; font-weight: bold; pointer-events: none; }
+        
+        input {
+            background: var(--input-bg); color: var(--text);
+            width: 100%; padding: 12px 25px 12px 10px;
+            border: 1px solid #ddd; border-radius: 8px;
+            font-size: 16px; text-align: right; outline: none;
+            box-sizing: border-box;
+        }
+        input:focus { border-color: var(--primary); }
+
+        /* --- CSS Logic Display --- */
+        .total-row { background: rgba(33, 150, 243, 0.1); padding: 10px; border-radius: 8px; text-align: right; font-weight: bold; color: var(--primary); margin-top: 5px; }
+        .budget-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px dashed #eee; font-size: 15px; }
+        .budget-val { font-weight: bold; font-family: monospace; font-size: 1.1rem; }
+        
+        .saving-box { background: rgba(255, 152, 0, 0.1); border: 1px solid var(--warning); padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
+        .saving-label { color: var(--warning); font-weight: bold; font-size: 14px; text-transform: uppercase; }
+        .saving-value { color: var(--warning); font-size: 20px; font-weight: 800; font-family: monospace; margin-top: 5px; }
+
+        .balance-box { background: rgba(76, 175, 80, 0.1); border: 2px solid var(--success); padding: 20px; border-radius: 12px; text-align: center; }
+        .balance-label { color: var(--text); font-weight: bold; font-size: 16px; margin-bottom: 5px; }
+        .balance-value { font-size: 32px; font-weight: 900; font-family: monospace; color: var(--success); }
+        
+        .text-red { color: var(--danger) !important; }
+        .text-green { color: var(--success) !important; }
+        .border-red { border-color: var(--danger) !important; background: rgba(211, 47, 47, 0.1) !important; }
+
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; margin-top: 10px;}
+        .btn-primary { background: var(--primary); }
+        .btn-success { background: var(--success); }
+        .note-btn { width: 100%; padding: 8px; background: rgba(0,0,0,0.05); border: none; border-radius: 6px; color: var(--primary); margin-top: 5px; cursor: pointer; }
+
+        /* --- CSS LỊCH SỬ --- */
+        .history-card { padding: 0 !important; overflow: hidden; border: 1px solid #eee; }
+        .history-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--card-bg); transition: background 0.2s; }
+        .history-header:active { background: rgba(0,0,0,0.05); }
+        .history-details { display: none; padding: 15px; border-top: 1px dashed #eee; background: rgba(0,0,0,0.015); animation: slideDown 0.25s ease-out; }
+        .history-details.show { display: block; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ==========================================================================
+           PHẦN TÍCH HỢP HIỆU ỨNG HOLOGRAM / PARTICLE (MỚI)
+           ========================================================================== */
+        
+        /* Khung hiển thị */
+        #display-area { width: 100%; height: 100%; background-size: cover; background-position: center; transition: 1s ease-in-out; position: relative; }
+        .effect-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        
+        /* 1. SUMMER (Tia nắng + Bụi vàng) */
+        .sun-beam {
+            position: absolute; width: 400%; height: 400%; top: -150%; left: -150%;
+            background: repeating-conic-gradient(from 0deg, rgba(255,215,0,0) 0deg, rgba(255,215,0,0.1) 15deg, rgba(255,215,0,0) 30deg);
+            animation: sun-rotate 30s linear infinite; mix-blend-mode: screen; filter: blur(4px);
+        }
+        .sun-dust {
+            position: absolute; background: #fffacd; border-radius: 50%;
+            box-shadow: 0 0 5px gold; animation: float-up linear infinite;
+        }
+        @keyframes sun-rotate { 100% { transform: rotate(360deg); } }
+        @keyframes float-up { 
+            0% { transform: translateY(100vh) translateX(0); opacity: 0; } 
+            50% { opacity: 1; }
+            100% { transform: translateY(-10vh) translateX(20px); opacity: 0; } 
+        }
+
+        /* 2. ZERO (Bong bóng xà phòng) */
+        .bubble {
+            position: absolute; bottom: -20px;
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.1));
+            border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 50%;
+            animation: bubble-rise linear infinite; box-shadow: inset -2px -2px 5px rgba(255, 255, 255, 0.2);
+        }
+        @keyframes bubble-rise {
+            0% { transform: translateY(0) translateX(0); opacity: 0; }
+            10% { opacity: 0.8; }
+            100% { transform: translateY(-110vh) translateX(30px); opacity: 0; }
+        }
+
+        /* 3. SAKURA, MƯA, TUYẾT */
+        .petal { position: absolute; background: #ffc0cb; border-radius: 150% 0 150% 0; animation: fall-sway linear infinite; }
+        @keyframes fall-sway { 0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(360deg); opacity: 0; } }
+        
+        .rain-drop { position: absolute; width: 2px; height: 20px; background: rgba(255,255,255,0.6); animation: rain-fall 0.7s linear infinite; }
+        @keyframes rain-fall { 100% { transform: translateY(100vh); } }
+
+        .snow-flake { position: absolute; background: white; border-radius: 50%; animation: snow-fall linear infinite; }
+        @keyframes snow-fall { 100% { transform: translateY(100vh); opacity: 0.3; } }
+
+        /* Thông tin số dư nổi trên hình */
+        .hologram-info {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            padding: 10px 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);
+            text-align: center; color: white; width: 80%;
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+<div id="screen-daily" class="screen active">
+    <h2 id="display-month-title">Nhập chi tiêu</h2>
+    
+    <div class="card">
+        <div class="group-title">Chi tiêu dùng (Lifestyle)</div>
+        <div class="input-group"><span>Skincare</span><div class="k-input-wrapper"><input type="number" id="inp-skincare" oninput="calc()"></div></div>
+        <div class="input-group"><span>Sức khỏe</span><div class="k-input-wrapper"><input type="number" id="inp-health" oninput="calc()"></div></div>
+        <div class="input-group"><span>Khác</span><div class="k-input-wrapper"><input type="number" id="inp-other-lifestyle" oninput="calc()"></div></div>
+        <button class="note-btn" onclick="addNote('otherLife')">📝 Ghi chú mục Khác</button>
+        <div class="total-row">Đã dùng: <span id="total-lifestyle">0</span></div>
+    </div>
+
+    <div class="card">
+        <div class="group-title">Chi cần thiết (Essential)</div>
+        <div class="input-group"><span>Xăng xe</span><div class="k-input-wrapper"><input type="number" id="inp-gas" oninput="calc()"></div></div>
+        <div class="input-group"><span>Khác</span><div class="k-input-wrapper"><input type="number" id="inp-other-essential" oninput="calc()"></div></div>
+        <button class="note-btn" onclick="addNote('otherEss')">📝 Ghi chú mục Khác</button>
+        <div class="total-row">Đã dùng: <span id="total-essential">0</span></div>
+    </div>
+
+    <button class="btn btn-primary" onclick="endMonth()">KẾT THÚC THÁNG</button>
+</div>
+
+<div id="screen-budget" class="screen">
+    <h2>Dòng tiền & Biến động</h2>
+    
+    <div class="saving-box">
+        <div class="saving-label">Mục tiêu Tiết kiệm (Dự tính)</div>
+        <div class="saving-value" id="static-saving-display">0 VNĐ</div>
+        <div style="font-size: 11px; opacity: 0.7; margin-top:5px;">(Con số này chỉ thay đổi khi sửa Phân bổ gốc)</div>
+    </div>
+
+    <div class="card" id="budget-details"></div>
+
+    <div class="balance-box" id="balance-box-ui">
+        <div class="balance-label">SỐ DƯ THỰC TẾ HIỆN TẠI</div>
+        <div class="balance-value" id="actual-balance-display">0 VNĐ</div>
+        <div style="font-size: 12px; margin-top: 5px;">= Tổng Ngân Sách - Tổng Tất Cả Đã Chi</div>
+    </div>
+</div>
+
+<div id="screen-status" class="screen">
+    <div id="display-area">
+        <div id="visual-effect" class="effect-overlay"></div>
+        <div class="hologram-info">
+            <div style="font-size: 12px; opacity: 0.8;">TÌNH HÌNH TÀI CHÍNH</div>
+            <div id="hologram-percent" style="font-size: 24px; font-weight: bold; color: var(--neon-blue);">100%</div>
+            <div id="hologram-status-text" style="font-size: 13px;">Trạng thái</div>
+        </div>
+    </div>
+</div>
+
+<div id="screen-history" class="screen">
+    <h2>Lịch sử</h2>
+    <div id="history-list"></div>
+</div>
+
+<div id="screen-alloc" class="screen">
+    <h2>Cấu hình Ngân sách Gốc</h2>
+    <p style="color: #666; font-size: 13px;">Nhập đơn vị K (500 = 500.000đ)</p>
+    
+    <div class="card">
+        <div class="input-group" style="border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px;">
+            <span style="font-weight:bold; color:var(--primary); font-size: 16px;">TỔNG NGÂN SÁCH GỐC</span>
+            <div class="k-input-wrapper"><input type="number" id="base-total-budget" style="font-weight:bold; color:var(--primary);" oninput="previewSaving()"></div>
+        </div>
+
+        <div class="group-title" style="font-size: 14px;">Phân bổ các ví con:</div>
+        <div class="input-group"><span>Skincare</span><div class="k-input-wrapper"><input type="number" id="base-skincare" oninput="previewSaving()"></div></div>
+        <div class="input-group"><span>Sức khỏe</span><div class="k-input-wrapper"><input type="number" id="base-health" oninput="previewSaving()"></div></div>
+        <div class="input-group"><span>Tiêu dùng (Khác)</span><div class="k-input-wrapper"><input type="number" id="base-other-lifestyle" oninput="previewSaving()"></div></div>
+        <div class="input-group"><span>Cần thiết (Tổng)</span><div class="k-input-wrapper"><input type="number" id="base-essential" oninput="previewSaving()"></div></div>
+
+        <div style="background: #FFF3E0; padding: 10px; border-radius: 8px; text-align: center; margin-top: 10px;">
+            <div style="font-size: 12px; color: #E65100;">Tiết kiệm dự tính (Còn lại):</div>
+            <div id="preview-saving-calc" style="font-weight: bold; color: #E65100; font-size: 18px;">0</div>
+        </div>
+
+        <button class="btn btn-success" onclick="saveBase()">LƯU CẤU HÌNH</button>
+    </div>
+</div>
+
+<div id="screen-settings" class="screen">
+    <h2>Cài đặt</h2>
+    <div class="card">
+        <div style="margin-bottom:10px; font-weight:bold;">Tên tháng:</div>
+        <input type="text" id="month-name-inp" style="text-align:left;">
+        <button class="btn btn-primary" onclick="updateMonthName()">Cập nhật tên</button>
+    </div>
+    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+        <b>Giao diện Tối/Sáng</b>
+        <button onclick="toggleTheme()" style="padding:8px 16px; border-radius:20px; border:1px solid #ddd; background:var(--input-bg); color:var(--text);">Đổi màu</button>
+    </div>
+</div>
+
+<div class="nav-container">
+    <button class="nav-item active" onclick="tab('daily')"><span class="nav-icon">📝</span>Nhập liệu</button>
+    <button class="nav-item" onclick="tab('budget')"><span class="nav-icon">📊</span>Biến động</button>
+    <button class="nav-item" onclick="tab('status')"><span class="nav-icon">🔮</span>Tình hình</button> <button class="nav-item" onclick="tab('history')"><span class="nav-icon">📜</span>Lịch sử</button>
+    <button class="nav-item" onclick="tab('alloc')"><span class="nav-icon">⚙️</span>Phân bổ</button>
+    <button class="nav-item" onclick="tab('settings')"><span class="nav-icon">🔧</span>Khác</button>
+</div>
+
+<script>
+    // --- KHỞI TẠO DỮ LIỆU ---
+    let base = JSON.parse(localStorage.getItem('base_config_v3')) || {
+        total: 0, skin: 0, health: 0, lifeOther: 0, ess: 0
+    };
+    let notes = {};
+    let mName = localStorage.getItem('mName_v3') || "Tháng hiện tại";
+    let theme = localStorage.getItem('theme_v3') || 'light';
+
+    // Hàm tiện ích
+    const getVal = (id) => (Number(document.getElementById(id).value) || 0) * 1000;
+    const fmt = (n) => n.toLocaleString('vi-VN');
+
+    // --- LOGIC GIAO DIỆN ---
+    document.body.setAttribute('data-theme', theme);
+    document.getElementById('month-name-inp').value = mName;
+    document.getElementById('display-month-title').innerText = mName;
+
+    function tab(id) {
+        document.querySelectorAll('.screen').forEach(e => e.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(e => e.classList.remove('active'));
+        document.getElementById('screen-' + id).classList.add('active');
+        
+        // Map lại index của nav-item
+        const navMap = ['daily', 'budget', 'status', 'history', 'alloc', 'settings'];
+        const idx = navMap.indexOf(id);
+        if(document.querySelectorAll('.nav-item')[idx]) {
+            document.querySelectorAll('.nav-item')[idx].classList.add('active');
+        }
+
+        if(id === 'budget') renderBudgetLogic();
+        if(id === 'status') renderStatusLogic(); // Gọi hàm xử lý hình ảnh
+        if(id === 'history') renderHistory();
+        if(id === 'alloc') loadAllocInputs();
+        window.scrollTo(0,0);
+    }
+
+    function toggleTheme() {
+        theme = theme === 'light' ? 'dark' : 'light';
+        localStorage.setItem('theme_v3', theme);
+        document.body.setAttribute('data-theme', theme);
+    }
+
+    function calc() {
+        const life = getVal('inp-skincare') + getVal('inp-health') + getVal('inp-other-lifestyle');
+        const ess = getVal('inp-gas') + getVal('inp-other-essential');
+        document.getElementById('total-lifestyle').innerText = fmt(life);
+        document.getElementById('total-essential').innerText = fmt(ess);
+    }
+
+    function addNote(key) {
+        const current = notes[key] || "";
+        const input = prompt("Ghi chú:", current);
+        if(input !== null) notes[key] = input;
+    }
+
+    function loadAllocInputs() {
+        document.getElementById('base-total-budget').value = base.total || '';
+        document.getElementById('base-skincare').value = base.skin || '';
+        document.getElementById('base-health').value = base.health || '';
+        document.getElementById('base-other-lifestyle').value = base.lifeOther || '';
+        document.getElementById('base-essential').value = base.ess || '';
+        previewSaving();
+    }
+
+    function previewSaving() {
+        const total = Number(document.getElementById('base-total-budget').value) || 0;
+        const sub = (Number(document.getElementById('base-skincare').value)||0) +
+                    (Number(document.getElementById('base-health').value)||0) +
+                    (Number(document.getElementById('base-other-lifestyle').value)||0) +
+                    (Number(document.getElementById('base-essential').value)||0);
+        document.getElementById('preview-saving-calc').innerText = (total - sub).toLocaleString('vi-VN') + " K";
+    }
+
+    function saveBase() {
+        base = {
+            total: Number(document.getElementById('base-total-budget').value),
+            skin: Number(document.getElementById('base-skincare').value),
+            health: Number(document.getElementById('base-health').value),
+            lifeOther: Number(document.getElementById('base-other-lifestyle').value),
+            ess: Number(document.getElementById('base-essential').value)
+        };
+        localStorage.setItem('base_config_v3', JSON.stringify(base));
+        alert("Đã lưu Phân bổ & Tính toán lại Tiết kiệm dự tính!");
+        tab('daily');
+    }
+
+    function renderBudgetLogic() {
+        // Logic cũ giữ nguyên...
+        const spentSkin = getVal('inp-skincare');
+        const spentHealth = getVal('inp-health');
+        const spentLifeOther = getVal('inp-other-lifestyle');
+        const spentGas = getVal('inp-gas');
+        const spentEssOther = getVal('inp-other-essential');
+        const totalSpent = spentSkin + spentHealth + spentLifeOther + spentGas + spentEssOther;
+
+        const allocatedTotal = (base.skin + base.health + base.lifeOther + base.ess) * 1000;
+        const totalBudget = base.total * 1000;
+        const staticSaving = totalBudget - allocatedTotal;
+
+        document.getElementById('static-saving-display').innerText = fmt(staticSaving) + " VNĐ";
+
+        const details = [
+            { name: "Skincare", alloc: base.skin*1000, spent: spentSkin },
+            { name: "Sức khỏe", alloc: base.health*1000, spent: spentHealth },
+            { name: "Tiêu dùng (Khác)", alloc: base.lifeOther*1000, spent: spentLifeOther },
+            { name: "Cần thiết (Tổng)", alloc: base.ess*1000, spent: spentGas + spentEssOther }
+        ];
+
+        let html = '';
+        details.forEach(item => {
+            const remain = item.alloc - item.spent;
+            const isNeg = remain < 0; 
+            html += `<div class="budget-row"><span>${item.name}</span><span class="budget-val ${isNeg ? 'text-red' : 'text-green'}">${fmt(remain)}</span></div>`;
+        });
+        document.getElementById('budget-details').innerHTML = html;
+
+        const actualBalance = totalBudget - totalSpent;
+        const balEl = document.getElementById('actual-balance-display');
+        const balBox = document.getElementById('balance-box-ui');
+        balEl.innerText = fmt(actualBalance) + " VNĐ";
+        
+        if (actualBalance < 0) {
+            balEl.classList.remove('text-green'); balEl.classList.add('text-red'); balBox.classList.add('border-red');
+        } else {
+            balEl.classList.remove('text-red'); balEl.classList.add('text-green'); balBox.classList.remove('border-red');
+        }
+    }
+
+    // --- [LOGIC MỚI] XỬ LÝ HÌNH ẢNH & HIỆU ỨNG ---
+    function renderStatusLogic() {
+        const totalBudget = (base.total || 0) * 1000;
+        const currentSpent = getVal('inp-skincare') + getVal('inp-health') + getVal('inp-other-lifestyle') + getVal('inp-gas') + getVal('inp-other-essential');
+        const balance = totalBudget - currentSpent;
+        
+        let percent = 0;
+        if (totalBudget > 0) percent = (balance / totalBudget) * 100;
+        else percent = balance < 0 ? -1 : 0; // Xử lý nếu chưa nhập ngân sách mà đã tiêu
+
+        // Cập nhật text hiển thị
+        document.getElementById('hologram-percent').innerText = percent.toFixed(1) + "%";
+        
+        let statusText = "Ổn định";
+        if(percent >= 75) statusText = "Rất tốt (Sakura)";
+        else if(percent >= 50) statusText = "Tốt (Summer)";
+        else if(percent >= 25) statusText = "Cẩn thận (Fall)";
+        else if(percent >= 0) statusText = "Nguy hiểm (Winter)";
+        else statusText = "Vỡ nợ (Zero)";
+        document.getElementById('hologram-status-text').innerText = statusText;
+
+        updateVisuals(percent);
+    }
+
+    function updateVisuals(percent) {
+        const display = document.getElementById('display-area');
+        document.getElementById('visual-effect').innerHTML = ''; // Xóa hiệu ứng cũ
+
+        if (percent >= 75) {
+            display.style.backgroundImage = "url('sakura.jpg')";
+            createParticles('petal', 30);
+        } else if (percent >= 50) {
+            display.style.backgroundImage = "url('summer.jpg')";
+            createParticles('sun', 1);
+        } else if (percent >= 25) {
+            display.style.backgroundImage = "url('fall.jpg')";
+            createParticles('rain-drop', 100);
+        } else if (percent >= 0) {
+            display.style.backgroundImage = "url('winter.jpg')";
+            createParticles('snow-flake', 50);
+        } else {
+            display.style.backgroundImage = "url('zero.jpg')";
+            createParticles('bubble', 40);
+        }
+    }
+
+    function createParticles(type, count) {
+        const container = document.getElementById('visual-effect');
+        
+        if (type === 'sun') {
+            const beam = document.createElement('div');
+            beam.className = 'sun-beam';
+            beam.style.animationDelay = '-' + (Math.random() * 20) + 's';
+            container.appendChild(beam);
+
+            for(let i=0; i<20; i++) {
+                const dust = document.createElement('div');
+                dust.className = 'sun-dust';
+                dust.style.left = Math.random() * 100 + 'vw';
+                dust.style.width = (Math.random() * 4 + 2) + 'px';
+                dust.style.height = dust.style.width;
+                dust.style.animationDuration = (Math.random() * 5 + 3) + 's';
+                dust.style.animationDelay = '-' + (Math.random() * 10) + 's';
+                container.appendChild(dust);
+            }
+            return;
+        }
+
+        for (let i = 0; i < count; i++) {
+            const div = document.createElement('div');
+            div.className = type;
+            div.style.left = Math.random() * 100 + 'vw';
+            div.style.animationDuration = (Math.random() * 3 + 2) + 's';
+            div.style.animationDelay = '-' + (Math.random() * 10) + 's'; // Delay âm để rơi ngay
+            
+            if (type === 'bubble' || type === 'petal' || type === 'snow-flake') {
+                const size = Math.random() * 15 + 5 + 'px';
+                div.style.width = size;
+                div.style.height = size;
+            }
+            container.appendChild(div);
+        }
+    }
+
+    function endMonth() {
+        if(!confirm("Xác nhận Kết thúc tháng?\nDữ liệu sẽ được lưu vào lịch sử.")) return;
+        
+        const totalSpent = getVal('inp-skincare') + getVal('inp-health') + getVal('inp-other-lifestyle') + getVal('inp-gas') + getVal('inp-other-essential');
+        const totalBudget = base.total * 1000;
+        const finalBalance = totalBudget - totalSpent;
+
+        const record = {
+            id: Date.now(),
+            name: mName,
+            date: new Date().toLocaleDateString('vi-VN'),
+            balance: finalBalance,
+            spentData: {
+                skin: getVal('inp-skincare'),
+                health: getVal('inp-health'),
+                lifeOther: { v: getVal('inp-other-lifestyle'), n: notes.otherLife },
+                gas: getVal('inp-gas'),
+                essOther: { v: getVal('inp-other-essential'), n: notes.otherEss } 
+            }
+        };
+
+        const hist = JSON.parse(localStorage.getItem('hist_v3')) || [];
+        hist.unshift(record);
+        localStorage.setItem('hist_v3', JSON.stringify(hist));
+
+        document.querySelectorAll('#screen-daily input').forEach(i => i.value = '');
+        notes = {};
+        calc();
+        tab('history');
+    }
+
+    function renderHistory() {
+        const hist = JSON.parse(localStorage.getItem('hist_v3')) || [];
+        const container = document.getElementById('history-list');
+        if(hist.length === 0) { container.innerHTML = '<p style="text-align:center;color:#999;margin-top:30px;">Chưa có lịch sử</p>'; return; }
+
+        container.innerHTML = hist.map(h => `
+            <div class="card history-card">
+                <div class="history-header" onclick="this.nextElementSibling.classList.toggle('show')">
+                    <div>
+                        <div style="font-weight:bold; font-size:16px;">${h.name}</div>
+                        <div style="font-size:12px; color:#888;">${h.date}</div>
+                    </div>
+                    <div style="font-weight:900; font-size:16px; ${h.balance < 0 ? 'color:var(--danger)' : 'color:var(--success)'}">
+                        ${h.balance < 0 ? '' : 'Dư: '}${fmt(h.balance)}
+                    </div>
+                </div>
+
+                <div class="history-details">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Skincare:</span> <b>${fmt(h.spentData.skin)}</b></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Sức khỏe:</span> <b>${fmt(h.spentData.health)}</b></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span>Khác (Tiêu dùng):</span> 
+                        <div style="text-align:right">
+                            <b>${fmt(h.spentData.lifeOther.v)}</b>
+                            ${h.spentData.lifeOther.n ? `<br><i style="font-size:12px;color:#666">"${h.spentData.lifeOther.n}"</i>` : ''}
+                        </div>
+                    </div>
+                    <div style="border-top:1px dashed #ddd; margin:8px 0;"></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Tiền xăng:</span> <b>${fmt(h.spentData.gas || 0)}</b></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span>Khác (Cần thiết):</span> 
+                        <div style="text-align:right">
+                            <b>${fmt(h.spentData.essOther ? h.spentData.essOther.v : (h.spentData.ess ? h.spentData.ess.v : 0))}</b>
+                             ${(h.spentData.essOther && h.spentData.essOther.n) ? `<br><i style="font-size:12px;color:#666">"${h.spentData.essOther.n}"</i>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="delHist(${h.id})" style="color:var(--danger); background:none; border:1px solid var(--danger); width:100%; margin-top:15px; border-radius:8px; padding:10px; font-weight:bold;">🗑️ Xóa bản ghi này</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function delHist(id) {
+        if(confirm("Xóa bản ghi này?")) {
+            let hist = JSON.parse(localStorage.getItem('hist_v3')) || [];
+            hist = hist.filter(h => h.id !== id);
+            localStorage.setItem('hist_v3', JSON.stringify(hist));
+            renderHistory();
+        }
+    }
+
+    function updateMonthName() {
+        mName = document.getElementById('month-name-inp').value;
+        localStorage.setItem('mName_v3', mName);
+        document.getElementById('display-month-title').innerText = mName;
+        alert("Đã đổi tên tháng");
+    }
+
+    document.querySelectorAll('input[type="number"]').forEach(i => i.setAttribute('inputmode', 'decimal'));
+
+</script>
+</body>
+</html>
